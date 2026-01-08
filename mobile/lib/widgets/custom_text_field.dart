@@ -15,6 +15,7 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final FocusNode? focusNode;
   final TextInputAction? textInputAction;
+  final bool readOnly;
   final void Function(String)? onSubmitted;
 
   const CustomTextField({
@@ -33,6 +34,7 @@ class CustomTextField extends StatelessWidget {
     this.focusNode,
     this.textInputAction,
     this.onSubmitted,
+    this.readOnly = false,
   });
 
   @override
@@ -45,6 +47,7 @@ class CustomTextField extends StatelessWidget {
       onChanged: onChanged,
       maxLines: maxLines,
       enabled: enabled,
+      readOnly: readOnly,
       focusNode: focusNode,
       textInputAction: textInputAction,
       onFieldSubmitted: onSubmitted,

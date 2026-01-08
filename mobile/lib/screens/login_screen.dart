@@ -3,6 +3,9 @@ import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../widgets/widgets.dart';
 
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+
 /// Login screen
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
@@ -25,18 +27,29 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      // TODO: Implement login logic
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-      });
+      final success = await context.read<AuthProvider>().login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      
+      if (!mounted) return;
+      
+      if (success) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.read<AuthProvider>().error ?? 'Login failed')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -131,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 CustomButton(
                   text: AppStrings.login,
                   onPressed: _handleLogin,
-                  isLoading: _isLoading,
+                  isLoading: authProvider.isLoading,
                 ),
                 const SizedBox(height: 16),
                 // Sign up link
@@ -141,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text(AppStrings.dontHaveAccount),
                     TextButton(
                       onPressed: () {
-                        // TODO: Navigate to sign up
+                        Navigator.of(context).pushNamed('/register'); // Updated to use named route for consistency
                       },
                       child: const Text(AppStrings.signUp),
                     ),

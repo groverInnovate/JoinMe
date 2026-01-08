@@ -44,4 +44,6 @@ class AppStrings {
   static const String back = 'Back';
   static const String submit = 'Submit';
   static const String search = 'Search';
+  static const String fullName = 'Full Name';
+  static const String createAccount = 'Create Account';
 }

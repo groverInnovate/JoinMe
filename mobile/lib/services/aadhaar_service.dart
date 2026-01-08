@@ -11,6 +11,7 @@ class AadhaarVerificationResult {
   final AadhaarData? data;
   final String? error;
   final String timestamp;
+  final String? verificationToken;
 
   AadhaarVerificationResult({
     required this.success,
@@ -19,6 +20,7 @@ class AadhaarVerificationResult {
     this.data,
     this.error,
     required this.timestamp,
+    this.verificationToken,
   });
 
   factory AadhaarVerificationResult.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class AadhaarVerificationResult {
           : null,
       error: json['message'],
       timestamp: responseData?['timestamp'] ?? DateTime.now().toIso8601String(),
+      verificationToken: json['verificationToken'],
     );
   }
 }

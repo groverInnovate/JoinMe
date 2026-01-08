@@ -71,7 +71,8 @@ class AuthProvider with ChangeNotifier {
     required String name,
     required String email,
     required String password,
-    String? college,
+    String? phone,
+    String? verificationToken,
   }) async {
     _setLoading(true);
     _clearError();
@@ -81,7 +82,8 @@ class AuthProvider with ChangeNotifier {
         name: name,
         email: email,
         password: password,
-        college: college,
+        phone: phone,
+        verificationToken: verificationToken,
       );
       
       await _storageService.saveUserData(jsonEncode(_user!.toJson()));

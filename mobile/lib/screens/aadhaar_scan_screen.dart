@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../constants/app_colors.dart';
 import '../services/aadhaar_service.dart';
 import '../widgets/custom_button.dart';
+import 'register_screen.dart';
 
 /// Aadhaar QR Scanner Screen
 class AadhaarScanScreen extends StatefulWidget {
@@ -223,7 +224,7 @@ class _AadhaarScanScreenState extends State<AadhaarScanScreen> {
                 const Divider(),
               ],
               if (result.referenceId != null) ...[
-                _buildInfoRow('Reference ID', result.referenceId!),
+                  _buildInfoRow('Reference ID', result.referenceId!),
               ],
             ],
           ),
@@ -233,15 +234,27 @@ class _AadhaarScanScreenState extends State<AadhaarScanScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (widget.userId != null)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Proceed to link Aadhaar
-                _linkAadhaar();
-              },
-              child: const Text('Link to Account'),
-            ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (result.verificationToken != null) {
+                // Navigate to register screen with verification data
+                Navigator.of(context).pushReplacement(
+                   MaterialPageRoute(
+                     builder: (context) => RegisterScreen(
+                       verificationToken: result.verificationToken,
+                       verifiedName: result.data?.name,
+                     ),
+                   ),
+                );
+              } else {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                   const SnackBar(content: Text('Verification token missing. Please try again.')),
+                 );
+              }
+            },
+            child: const Text('Continue to Register'),
+          ),
         ],
       ),
     );
