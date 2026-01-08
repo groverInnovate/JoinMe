@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const aadhaarService = require('../utils/aadhaarService');
 const User = require('../models/User');
 
@@ -29,10 +30,37 @@ const aadhaarController = {
                 });
             }
 
+            // Generate a deduplication hash
+            const dedupHash = aadhaarService.generateDeduplicationHash({
+                ...result.data,
+                uid: result.data.uidLastFour
+            });
+
+            // Create a verification token for the frontend to pass to /register
+            const verificationPayload = {
+                type: 'aadhaar_verification',
+                aadhaarData: {
+                    name: result.data.name,
+                    dob: result.data.dateOfBirth,
+                    gender: result.data.gender,
+                    uidLast4: result.data.uidLastFour,
+                    pincode: result.data.address ? result.data.address.postcode : null,
+                    state: result.data.address ? result.data.address.state : null,
+                    deduplicationHash: dedupHash
+                }
+            };
+
+            const verificationToken = jwt.sign(
+                verificationPayload,
+                process.env.JWT_SECRET || 'joinme_jwt_secret_dev_key_2024',
+                { expiresIn: '30m' } // 30 minutes to complete registration
+            );
+
             res.status(200).json({
                 success: true,
                 message: 'Aadhaar QR code verified successfully',
                 data: result,
+                verificationToken, // Pass this to subsequent steps
             });
         } catch (error) {
             console.error('Aadhaar verification error:', error);

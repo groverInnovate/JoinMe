@@ -237,31 +237,24 @@ class AadhaarService {
             console.log('Total fields found:', fields.length);
             console.log('All fields:', fields.slice(0, 20)); // Print first 20 fields
 
-            // Based on mAadhaar Secure QR V2, typical field order after analyzing the data:
-            // The name "Mohit Grover" appeared at index 3, so let's map accordingly
-            // Field 0: Version/email-mobile byte as string (like "V5")
-            // Field 1: Reference ID 
-            // Field 2: Timestamp/date generated
-            // Field 3: Name
-            // Field 4: DOB (DD-MM-YYYY)
-            // Field 5: Gender (M/F)
-            // Field 6-onwards: Address fields
+            // Improved heuristic: Find Gender to anchor the other fields
+            // Gender is usually "M" or "F" or "Male" or "Female"
+            let genderIndex = fields.findIndex(f => ['M', 'F', 'Male', 'Female', 'Transgender'].includes(f));
 
-            // Find the name field (typically contains spaces and letters only)
-            let nameIndex = fields.findIndex(f => /^[A-Za-z\s]+$/.test(f) && f.includes(' ') && f.length > 3);
-            if (nameIndex === -1) {
-                nameIndex = 3; // Default fallback
+            let nameIndex = 3; // Default
+
+            if (genderIndex !== -1) {
+                // Based on standard order: RefId, Name, DOB, Gender, ...
+                if (genderIndex >= 2) {
+                    nameIndex = genderIndex - 2;
+                }
             }
 
-            console.log('Name detected at index:', nameIndex, 'Value:', fields[nameIndex]);
+            // Parse based on detected indices
 
-            // Parse based on detected name position
             const name = fields[nameIndex] || '';
             const dob = fields[nameIndex + 1] || '';
             const gender = fields[nameIndex + 2] || '';
-
-            // Reference ID is usually early in the array
-            const referenceId = fields[1] || fields[0] || '';
 
             // Address fields follow after gender
             const careOf = fields[nameIndex + 3] || '';
@@ -276,7 +269,7 @@ class AadhaarService {
             const subDistrict = fields[nameIndex + 12] || '';
             const vtc = fields[nameIndex + 13] || '';
 
-            // Find pincode (6 digits)
+            // Find pincode (6 digits) explicitly as fallback
             let detectedPincode = pincode;
             for (const f of fields) {
                 if (/^\d{6}$/.test(f)) {
@@ -285,23 +278,25 @@ class AadhaarService {
                 }
             }
 
+            // Reference ID is usually early in the array (index 1 or 0)
+            const referenceId = fields[1] || fields[0] || '';
+
             // Last 4 digits of Aadhaar from reference ID
             const uidMatch = referenceId.match(/\d{4}$/);
             const uidLast4 = uidMatch ? uidMatch[0] : '';
 
-            console.log('=== PARSED DATA ===');
-            console.log('Name:', name);
-            console.log('DOB:', dob);
-            console.log('Gender:', gender);
-            console.log('Pincode:', detectedPincode);
-            console.log('State:', state);
+            // Map Gender to full string
+            const genderMap = { 'M': 'Male', 'F': 'Female', 'T': 'Transgender' };
+            const finalGender = genderMap[gender] || gender;
+
+            console.log('Secure QR V2 parsed successfully');
 
             return {
                 uid: uidLast4,
                 referenceId,
                 name,
                 dateOfBirth: dob,
-                gender: gender === 'M' ? 'Male' : gender === 'F' ? 'Female' : gender,
+                gender: finalGender,
                 careOf,
                 house,
                 street,
@@ -313,8 +308,8 @@ class AadhaarService {
                 state,
                 postcode: detectedPincode,
                 postOffice,
-                hasImage: imageIndicator === 1,
-                hasEmailMobile: emailMobileIndicator >= 1,
+                hasImage: false,
+                hasEmailMobile: false,
             };
         } catch (error) {
             console.error('Secure QR parse error:', error);
@@ -366,6 +361,30 @@ class AadhaarService {
         } catch (error) {
             throw new Error(`Failed to parse Aadhaar XML: ${error.message}`);
         }
+    }
+
+    /**
+     * Generate a deterministic hash for deduplication
+     * @param {Object} data - Verified Aadhaar data
+     * @returns {string} - SHA-256 hash
+     */
+    generateDeduplicationHash(data) {
+        // Create a unique string from immutable identity fields
+        // use lower case and trim to ensure consistency
+        const name = (data.name || '').toLowerCase().trim();
+        const dob = (data.dateOfBirth || '').trim();
+        const gender = (data.gender || '').toLowerCase().trim();
+        const uidLast4 = (data.uid || '').trim();
+        const pincode = (data.postcode || '').trim();
+
+        // Composite key: name|dob|gender|uidLast4|pincode
+        // This combination is highly likely to be unique for a person
+        const compositeKey = `${name}|${dob}|${gender}|${uidLast4}|${pincode}`;
+
+        return crypto
+            .createHash('sha256')
+            .update(compositeKey)
+            .digest('hex');
     }
 
     /**

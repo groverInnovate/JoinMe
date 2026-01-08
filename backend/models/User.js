@@ -5,9 +5,8 @@ const userSchema = new mongoose.Schema(
     {
         name: {
             type: String,
-            required: [true, 'Name is required'],
             trim: true,
-            minlength: [2, 'Name must be at least 2 characters'],
+            default: 'User', // Default name if not provided
             maxlength: [100, 'Name cannot exceed 100 characters'],
         },
         email: {
@@ -62,8 +61,8 @@ const userSchema = new mongoose.Schema(
 
 // Note: email already has an index from unique: true
 
-// Index on aadhaarNumber for fast lookups
-userSchema.index({ aadhaarNumber: 1 });
+// Index on aadhaarNumber for fast lookups and uniqueness enforcement
+userSchema.index({ aadhaarNumber: 1 }, { unique: true, sparse: true });
 
 // Compound index for common queries
 userSchema.index({ isActive: 1, createdAt: -1 });
@@ -71,34 +70,12 @@ userSchema.index({ isActive: 1, createdAt: -1 });
 // ============ Pre-save Middleware ============
 
 // Hash password before saving
-userSchema.pre('save', async function (next) {
+// Hash password before saving
+userSchema.pre('save', async function () {
     // Only hash password if it's modified
-    if (!this.isModified('password')) {
-        return next();
-    }
-
-    try {
+    if (this.isModified('password')) {
         const salt = await bcrypt.genSalt(12);
         this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Hash Aadhaar number before saving
-userSchema.pre('save', async function (next) {
-    // Only hash if aadhaarNumber is modified and exists
-    if (!this.isModified('aadhaarNumber') || !this.aadhaarNumber) {
-        return next();
-    }
-
-    try {
-        const salt = await bcrypt.genSalt(12);
-        this.aadhaarNumber = await bcrypt.hash(this.aadhaarNumber, salt);
-        next();
-    } catch (error) {
-        next(error);
     }
 });
 

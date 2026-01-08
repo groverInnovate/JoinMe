@@ -54,6 +54,10 @@ app.get('/api/health', (req, res) => {
 
 // ============ API Routes ============
 
+// Auth routes
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/v1/auth', authRoutes);
+
 // Aadhaar verification routes
 const aadhaarRoutes = require('./routes/aadhaarRoutes');
 app.use('/api/v1/aadhaar', aadhaarRoutes);
