@@ -241,21 +241,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: _handleRegister,
                   isLoading: authProvider.isLoading,
                 ),
-                
-                if (!_isVerified) ...[
-                  const SizedBox(height: 16),
-                   OutlinedButton.icon(
-                    onPressed: () {
-                      // Navigate to Aadhaar Scan
-                      Navigator.pushNamed(context, '/aadhaar-scan');
-                    },
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Verify with Aadhaar First'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ],
 
                 const SizedBox(height: 16),
                 

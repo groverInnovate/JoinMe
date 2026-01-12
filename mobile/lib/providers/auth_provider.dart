@@ -12,34 +12,43 @@ class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
 
   User? _user;
-  bool _isLoading = false;
+  bool _isLoading = true; // Start as true for initial load
+  bool _isInitialized = false;
   String? _error;
 
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated => _user != null && _isInitialized;
 
   /// Initialize auth state from storage
   Future<void> init() async {
+    if (_isInitialized) return;
+    
+    _isLoading = true;
+    notifyListeners();
+    
     await _storageService.init();
     
     final token = _storageService.getToken();
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       _apiService.setAuthToken(token);
       
       final userData = _storageService.getUserData();
       if (userData != null) {
         try {
           _user = User.fromJson(jsonDecode(userData));
-          notifyListeners();
         } catch (e) {
           // Invalid user data, clear storage
           await logout();
         }
       }
     }
+    
+    _isInitialized = true;
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Login with email and password

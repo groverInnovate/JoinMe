@@ -154,7 +154,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text(AppStrings.dontHaveAccount),
                     TextButton(
                       onPressed: () {
-                        Navigator.of(context).pushNamed('/register'); // Updated to use named route for consistency
+                        // Navigate to Aadhaar scan for verification first
+                        Navigator.of(context).pushNamed('/aadhaar-scan');
                       },
                       child: const Text(AppStrings.signUp),
                     ),

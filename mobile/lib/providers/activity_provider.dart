@@ -33,21 +33,13 @@ class ActivityProvider with ChangeNotifier {
     }
   }
 
-  /// Fetch nearby activities
-  Future<void> fetchNearbyActivities({
-    required double latitude,
-    required double longitude,
-    double radius = 10.0,
-  }) async {
+  /// Fetch activities with filters
+  Future<void> fetchActivitiesByCategory(String? category) async {
     _setLoading(true);
     _clearError();
 
     try {
-      _nearbyActivities = await _activityService.getNearbyActivities(
-        latitude: latitude,
-        longitude: longitude,
-        radius: radius,
-      );
+      _activities = await _activityService.getActivities(category: category);
       _setLoading(false);
     } catch (e) {
       _setError(e.toString());
@@ -70,12 +62,28 @@ class ActivityProvider with ChangeNotifier {
   }
 
   /// Create new activity
-  Future<bool> createActivity(Activity activity) async {
+  Future<bool> createActivity({
+    required String title,
+    String? description,
+    required String category,
+    required int maxParticipants,
+    required String location,
+    required DateTime date,
+    required String time,
+  }) async {
     _setLoading(true);
     _clearError();
 
     try {
-      final newActivity = await _activityService.createActivity(activity);
+      final newActivity = await _activityService.createActivity(
+        title: title,
+        description: description,
+        category: category,
+        maxParticipants: maxParticipants,
+        location: location,
+        date: date,
+        time: time,
+      );
       _activities.insert(0, newActivity);
       _setLoading(false);
       return true;

@@ -2,7 +2,7 @@
 class ApiConstants {
   // Base URLs
   // Use your computer's IP for real device, or localhost for simulator
-  static const String baseUrl = 'http://10.81.18.240:3001';
+  static const String baseUrl = 'http://10.81.21.23:3001';
   static const String apiVersion = '/api/v1';
 
   // Auth endpoints
