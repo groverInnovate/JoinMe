@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const { Server } = require('socket.io');
 
 // Load environment variables
 dotenv.config();
@@ -9,10 +11,27 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+// Create HTTP server for Socket.IO
+const server = http.createServer(app);
+
+// Initialize Socket.IO with CORS
+const io = new Server(server, {
+    cors: {
+        origin: '*', // In production, restrict to your app's domain
+        methods: ['GET', 'POST'],
+    },
+});
+
+// Import socket handlers
+const { initializeSocketHandlers } = require('./socket/socketHandlers');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Make io accessible to routes (for emitting events from controllers)
+app.set('io', io);
 
 // Port configuration
 const PORT = process.env.PORT || 5000;
@@ -62,6 +81,10 @@ app.use('/api/v1/auth', authRoutes);
 const aadhaarRoutes = require('./routes/aadhaarRoutes');
 app.use('/api/v1/aadhaar', aadhaarRoutes);
 
+// Activity routes
+const activityRoutes = require('./routes/activityRoutes');
+app.use('/api/v1/activities', activityRoutes);
+
 // ============ Error Handlers ============
 
 // 404 handler for undefined routes
@@ -103,13 +126,17 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     await connectDB();
 
-    app.listen(PORT, () => {
+    // Initialize Socket.IO handlers
+    initializeSocketHandlers(io);
+
+    server.listen(PORT, () => {
         console.log(`
 🚀 ================================
    JoinMe Server Started!
    Port: ${PORT}
    Environment: ${process.env.NODE_ENV || 'development'}
    URL: http://localhost:${PORT}
+   WebSocket: ws://localhost:${PORT}
 ================================ 🚀
     `);
     });
