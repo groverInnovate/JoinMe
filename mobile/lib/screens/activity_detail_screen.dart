@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/activity_model.dart';
 import '../services/activity_service.dart';
+import '../services/socket_service.dart';
 import '../providers/auth_provider.dart';
 
 /// Activity Detail Screen
@@ -18,6 +19,7 @@ class ActivityDetailScreen extends StatefulWidget {
 
 class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   final ActivityService _activityService = ActivityService();
+  final SocketService _socketService = SocketService();
 
   Activity? _activity;
   bool _isLoading = true;
@@ -28,6 +30,79 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   void initState() {
     super.initState();
     _loadActivity();
+    _setupSocketListeners();
+  }
+
+  @override
+  void dispose() {
+    _removeSocketListeners();
+    // Leave activity room when screen is disposed
+    _socketService.leaveActivityRoom(widget.activityId);
+    super.dispose();
+  }
+
+  void _setupSocketListeners() {
+    // Join activity room for real-time updates
+    _socketService.joinActivityRoom(widget.activityId);
+    
+    // Listen for participant updates
+    _socketService.onParticipantJoined(_handleParticipantJoined);
+    _socketService.onParticipantLeft(_handleParticipantLeft);
+  }
+
+  void _removeSocketListeners() {
+    _socketService.removeParticipantJoinedListener(_handleParticipantJoined);
+    _socketService.removeParticipantLeftListener(_handleParticipantLeft);
+  }
+
+  void _handleParticipantJoined(dynamic data) {
+    if (!mounted) return;
+    
+    // Only update if it's for this activity
+    if (data['activityId'] != widget.activityId) return;
+    
+    // Don't show notification for self
+    final currentUserId = context.read<AuthProvider>().user?.id;
+    if (data['userId'] == currentUserId) return;
+    
+    // Update activity data
+    if (data['activity'] != null) {
+      setState(() {
+        _activity = Activity.fromJson(data['activity']);
+      });
+    }
+    
+    // Show notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Someone just joined the activity!'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _handleParticipantLeft(dynamic data) {
+    if (!mounted) return;
+    
+    // Only update if it's for this activity
+    if (data['activityId'] != widget.activityId) return;
+    
+    // Don't show notification for self
+    final currentUserId = context.read<AuthProvider>().user?.id;
+    if (data['userId'] == currentUserId) return;
+    
+    // Reload activity to get updated data
+    _loadActivity();
+    
+    // Show notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Someone left the activity'),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _loadActivity() async {

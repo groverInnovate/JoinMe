@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/activity_model.dart';
 import '../services/activity_service.dart';
+import '../services/socket_service.dart';
 import '../widgets/activity_card.dart';
 import '../providers/auth_provider.dart';
 
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ActivityService _activityService = ActivityService();
+  final SocketService _socketService = SocketService();
   
   List<Activity> _activities = [];
   bool _isLoading = true;
@@ -40,6 +42,62 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadActivities();
+    _setupSocketListeners();
+  }
+
+  @override
+  void dispose() {
+    _removeSocketListeners();
+    super.dispose();
+  }
+
+  void _setupSocketListeners() {
+    // Listen for new activities
+    _socketService.onActivityCreated(_handleNewActivity);
+    
+    // Listen for participant updates
+    _socketService.onParticipantJoined(_handleParticipantUpdate);
+    _socketService.onParticipantLeft(_handleParticipantUpdate);
+  }
+
+  void _removeSocketListeners() {
+    _socketService.removeActivityCreatedListener(_handleNewActivity);
+    _socketService.removeParticipantJoinedListener(_handleParticipantUpdate);
+    _socketService.removeParticipantLeftListener(_handleParticipantUpdate);
+  }
+
+  void _handleNewActivity(dynamic data) {
+    if (!mounted) return;
+    
+    // Show notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('New activity: ${data['activity']?['title'] ?? 'Unknown'}'),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: _loadActivities,
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+    
+    // Refresh the list
+    _loadActivities();
+  }
+
+  void _handleParticipantUpdate(dynamic data) {
+    if (!mounted) return;
+    
+    // Update the activity in the list
+    final activityId = data['activityId'];
+    if (activityId != null) {
+      final index = _activities.indexWhere((a) => a.id == activityId);
+      if (index != -1 && data['activity'] != null) {
+        setState(() {
+          _activities[index] = Activity.fromJson(data['activity']);
+        });
+      }
+    }
   }
 
   Future<void> _loadActivities() async {

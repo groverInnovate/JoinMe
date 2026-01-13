@@ -4,12 +4,14 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 /// Authentication state provider
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   final ApiService _apiService = ApiService();
+  final SocketService _socketService = SocketService();
 
   User? _user;
   bool _isLoading = true; // Start as true for initial load
@@ -49,6 +51,11 @@ class AuthProvider with ChangeNotifier {
     _isInitialized = true;
     _isLoading = false;
     notifyListeners();
+    
+    // Connect socket if user is authenticated
+    if (_user != null) {
+      await _socketService.connect();
+    }
   }
 
   /// Login with email and password
@@ -65,6 +72,9 @@ class AuthProvider with ChangeNotifier {
         await _storageService.saveToken(token);
       }
       await _storageService.saveUserData(jsonEncode(_user!.toJson()));
+      
+      // Connect socket after successful login
+      await _socketService.connect();
       
       _setLoading(false);
       return true;
@@ -97,6 +107,9 @@ class AuthProvider with ChangeNotifier {
       
       await _storageService.saveUserData(jsonEncode(_user!.toJson()));
       
+      // Connect socket after successful registration
+      await _socketService.connect();
+      
       _setLoading(false);
       return true;
     } catch (e) {
@@ -109,6 +122,9 @@ class AuthProvider with ChangeNotifier {
   /// Logout user
   Future<void> logout() async {
     _setLoading(true);
+
+    // Disconnect socket first
+    _socketService.disconnect();
 
     try {
       await _authService.logout();
