@@ -5,14 +5,19 @@ const auth = require('../middleware/auth');
 
 // Public routes
 router.get('/', activityController.getActivities);
-router.get('/:id', activityController.getActivity);
+router.get('/nearby', activityController.getNearbyActivities); // Must be before /:id
 
-// Protected routes
+// Protected routes (specific paths before param routes)
 router.get('/my-activities', auth, activityController.getMyAllActivities);
-router.post('/', auth, activityController.createActivity);
-router.post('/:id/join', auth, activityController.joinActivity);
-router.post('/:id/leave', auth, activityController.leaveActivity);
 router.get('/user/my', auth, activityController.getMyActivities);
 router.get('/user/joined', auth, activityController.getJoinedActivities);
 
+router.post('/', auth, activityController.createActivity);
+router.post('/:id/join', auth, activityController.joinActivity);
+router.post('/:id/leave', auth, activityController.leaveActivity);
+
+// Param routes (must be last)
+router.get('/:id', activityController.getActivity);
+
 module.exports = router;
+

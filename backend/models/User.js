@@ -39,6 +39,22 @@ const userSchema = new mongoose.Schema(
             minlength: [6, 'Password must be at least 6 characters'],
             select: false, // Don't include in queries by default
         },
+        // GeoJSON location for geospatial queries
+        location: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point',
+            },
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                default: [0, 0],
+            },
+        },
+        lastLocationUpdate: {
+            type: Date,
+            default: null,
+        },
         isVerified: {
             type: Boolean,
             default: false,
@@ -66,6 +82,9 @@ userSchema.index({ aadhaarNumber: 1 }, { unique: true, sparse: true });
 
 // Compound index for common queries
 userSchema.index({ isActive: 1, createdAt: -1 });
+
+// 2dsphere index for geospatial queries
+userSchema.index({ location: '2dsphere' });
 
 // ============ Pre-save Middleware ============
 

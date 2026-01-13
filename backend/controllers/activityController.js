@@ -17,6 +17,8 @@ const activityController = {
                 category,
                 maxParticipants,
                 location,
+                latitude,
+                longitude,
                 date,
                 time,
             } = req.body;
@@ -29,8 +31,8 @@ const activityController = {
                 });
             }
 
-            // Create activity with creator set to logged-in user
-            const activity = await Activity.create({
+            // Build activity data
+            const activityData = {
                 title,
                 description,
                 category,
@@ -40,7 +42,18 @@ const activityController = {
                 location,
                 date: new Date(date),
                 time,
-            });
+            };
+
+            // Add coordinates if provided
+            if (latitude !== undefined && longitude !== undefined) {
+                activityData.coordinates = {
+                    type: 'Point',
+                    coordinates: [longitude, latitude], // GeoJSON format: [lng, lat]
+                };
+            }
+
+            // Create activity with creator set to logged-in user
+            const activity = await Activity.create(activityData);
 
             // Populate creator info for response
             await activity.populate('creator', 'name email profilePicture');
@@ -140,6 +153,116 @@ const activityController = {
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch activities',
+            });
+        }
+    },
+
+    /**
+     * Get nearby activities using geospatial query
+     * GET /api/v1/activities/nearby?lat=&lng=&radius=
+     * @access Public
+     */
+    getNearbyActivities: async (req, res) => {
+        try {
+            const { lat, lng, radius = 10, limit = 20, category, status } = req.query;
+
+            // Validate required coordinates
+            if (!lat || !lng) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Latitude (lat) and longitude (lng) are required',
+                });
+            }
+
+            const latitude = parseFloat(lat);
+            const longitude = parseFloat(lng);
+            const maxDistance = parseFloat(radius) * 1000; // Convert km to meters
+
+            // Validate coordinate ranges
+            if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid coordinates',
+                });
+            }
+
+            // Build match conditions for additional filters
+            const matchConditions = {
+                'coordinates.coordinates': { $exists: true, $ne: null },
+            };
+
+            if (category) {
+                matchConditions.category = category;
+            }
+
+            if (status) {
+                matchConditions.status = status;
+            } else {
+                // Default to open activities
+                matchConditions.status = 'open';
+            }
+
+            // Aggregate with $geoNear
+            const activities = await Activity.aggregate([
+                {
+                    $geoNear: {
+                        near: {
+                            type: 'Point',
+                            coordinates: [longitude, latitude],
+                        },
+                        distanceField: 'distance',
+                        maxDistance: maxDistance,
+                        spherical: true,
+                        query: matchConditions,
+                    },
+                },
+                { $limit: parseInt(limit) },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'creator',
+                        foreignField: '_id',
+                        as: 'creator',
+                        pipeline: [
+                            { $project: { name: 1, email: 1, profilePicture: 1 } }
+                        ]
+                    }
+                },
+                { $unwind: '$creator' },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'participants',
+                        foreignField: '_id',
+                        as: 'participants',
+                        pipeline: [
+                            { $project: { name: 1, profilePicture: 1 } }
+                        ]
+                    }
+                },
+                {
+                    $addFields: {
+                        distanceKm: { $divide: ['$distance', 1000] }, // Convert to km
+                    }
+                }
+            ]);
+
+            res.status(200).json({
+                success: true,
+                data: activities,
+                count: activities.length,
+                query: {
+                    lat: latitude,
+                    lng: longitude,
+                    radiusKm: parseFloat(radius),
+                },
+            });
+        } catch (error) {
+            console.error('Get nearby activities error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch nearby activities',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined,
             });
         }
     },

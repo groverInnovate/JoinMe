@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../constants/app_colors.dart';
 import '../models/activity_model.dart';
 import '../services/activity_service.dart';
 import '../services/socket_service.dart';
+import '../services/location_service.dart';
 import '../widgets/activity_card.dart';
 import '../providers/auth_provider.dart';
 
@@ -18,11 +20,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ActivityService _activityService = ActivityService();
   final SocketService _socketService = SocketService();
+  final LocationService _locationService = LocationService();
   
   List<Activity> _activities = [];
   bool _isLoading = true;
   String? _selectedCategory;
   String? _error;
+  bool _isNearbyMode = false;
+  Position? _currentPosition;
 
   final List<Map<String, dynamic>> _categories = [
     {'value': null, 'label': 'All', 'icon': Icons.apps},
@@ -107,9 +112,22 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final activities = await _activityService.getActivities(
-        category: _selectedCategory,
-      );
+      List<Activity> activities;
+      
+      if (_isNearbyMode && _currentPosition != null) {
+        // Fetch nearby activities
+        activities = await _activityService.getNearbyActivities(
+          latitude: _currentPosition!.latitude,
+          longitude: _currentPosition!.longitude,
+          category: _selectedCategory,
+        );
+      } else {
+        // Fetch all activities
+        activities = await _activityService.getActivities(
+          category: _selectedCategory,
+        );
+      }
+      
       setState(() {
         _activities = activities;
         _isLoading = false;
@@ -119,6 +137,43 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = 'Failed to load activities: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleNearbyMode() async {
+    if (!_isNearbyMode) {
+      // Turning ON nearby mode - get location
+      setState(() => _isLoading = true);
+      
+      final position = await _locationService.getCurrentPosition();
+      
+      if (position != null) {
+        setState(() {
+          _currentPosition = position;
+          _isNearbyMode = true;
+        });
+        _loadActivities();
+      } else {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not get location'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => _locationService.openAppSettings(),
+              ),
+            ),
+          );
+        }
+      }
+    } else {
+      // Turning OFF nearby mode
+      setState(() {
+        _isNearbyMode = false;
+        _currentPosition = null;
+      });
+      _loadActivities();
     }
   }
 
@@ -227,9 +282,40 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: _categories.length,
+        itemCount: _categories.length + 1, // +1 for Nearby chip
         itemBuilder: (context, index) {
-          final category = _categories[index];
+          // First item is Nearby chip
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FilterChip(
+                selected: _isNearbyMode,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.near_me,
+                      size: 16,
+                      color: _isNearbyMode ? Colors.white : Colors.orange,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(_isNearbyMode ? 'Nearby ✓' : 'Nearby'),
+                  ],
+                ),
+                labelStyle: TextStyle(
+                  color: _isNearbyMode ? Colors.white : Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+                backgroundColor: Colors.orange.shade50,
+                selectedColor: Colors.orange,
+                onSelected: (_) => _toggleNearbyMode(),
+                showCheckmark: false,
+              ),
+            );
+          }
+          
+          // Category chips
+          final category = _categories[index - 1];
           final isSelected = _selectedCategory == category['value'];
           
           return Padding(

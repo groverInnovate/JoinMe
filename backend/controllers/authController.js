@@ -163,6 +163,75 @@ const authController = {
             });
         }
     },
+
+    /**
+     * @desc    Update user location
+     * @route   PUT /api/v1/auth/location
+     * @access  Private
+     */
+    updateLocation: async (req, res) => {
+        try {
+            const { latitude, longitude } = req.body;
+
+            // Validate coordinates
+            if (latitude === undefined || longitude === undefined) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Latitude and longitude are required',
+                });
+            }
+
+            // Validate coordinate ranges
+            if (latitude < -90 || latitude > 90) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Latitude must be between -90 and 90',
+                });
+            }
+
+            if (longitude < -180 || longitude > 180) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Longitude must be between -180 and 180',
+                });
+            }
+
+            const user = await User.findByIdAndUpdate(
+                req.userId,
+                {
+                    location: {
+                        type: 'Point',
+                        coordinates: [longitude, latitude], // GeoJSON format: [lng, lat]
+                    },
+                    lastLocationUpdate: new Date(),
+                },
+                { new: true }
+            );
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Location updated successfully',
+                data: {
+                    location: user.location,
+                    lastLocationUpdate: user.lastLocationUpdate,
+                },
+            });
+        } catch (error) {
+            console.error('Update location error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Server error updating location',
+            });
+        }
+    },
 };
 
 module.exports = authController;
+

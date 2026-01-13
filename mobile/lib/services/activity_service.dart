@@ -39,18 +39,28 @@ class ActivityService {
     required String location,
     required DateTime date,
     required String time,
+    double? latitude,
+    double? longitude,
   }) async {
+    final body = {
+      'title': title,
+      'description': description,
+      'category': category,
+      'maxParticipants': maxParticipants,
+      'location': location,
+      'date': date.toIso8601String(),
+      'time': time,
+    };
+    
+    // Add coordinates if provided
+    if (latitude != null && longitude != null) {
+      body['latitude'] = latitude;
+      body['longitude'] = longitude;
+    }
+    
     final response = await _apiService.post(
       ApiConstants.activities,
-      body: {
-        'title': title,
-        'description': description,
-        'category': category,
-        'maxParticipants': maxParticipants,
-        'location': location,
-        'date': date.toIso8601String(),
-        'time': time,
-      },
+      body: body,
     );
     return Activity.fromJson(response['data']);
   }
@@ -108,5 +118,21 @@ class ActivityService {
       body: data,
     );
     return Activity.fromJson(response['data']);
+  }
+
+  /// Get nearby activities based on coordinates
+  Future<List<Activity>> getNearbyActivities({
+    required double latitude,
+    required double longitude,
+    double radius = 10, // in km
+    String? category,
+    int limit = 20,
+  }) async {
+    String endpoint = '${ApiConstants.activities}/nearby?lat=$latitude&lng=$longitude&radius=$radius&limit=$limit';
+    if (category != null) endpoint += '&category=$category';
+
+    final response = await _apiService.get(endpoint);
+    final List<dynamic> data = response['data'] ?? [];
+    return data.map((json) => Activity.fromJson(json)).toList();
   }
 }

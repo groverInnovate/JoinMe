@@ -49,5 +49,11 @@
 	<string>JoinMe needs camera access to scan Aadhaar QR codes for identity verification.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>JoinMe needs photo library access to upload Aadhaar QR code images for verification.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>JoinMe needs your location to show nearby activities and help others find your activities.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>JoinMe uses your location to notify you about nearby activities even when the app is in the background.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>JoinMe needs your location to show nearby activities and send notifications about activities near you.</string>
 </dict>
 </plist>

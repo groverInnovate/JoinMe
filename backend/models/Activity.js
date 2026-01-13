@@ -49,10 +49,23 @@ const activitySchema = new mongoose.Schema(
             min: [2, 'Activity must allow at least 2 participants'],
             max: [100, 'Activity cannot have more than 100 participants'],
         },
+        // Location name (address/place name)
         location: {
             type: String,
             required: [true, 'Location is required'],
             trim: true,
+        },
+        // GeoJSON coordinates for geospatial queries
+        coordinates: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point',
+            },
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                default: undefined,
+            },
         },
         date: {
             type: Date,
@@ -82,6 +95,7 @@ activitySchema.index({ creator: 1 });
 activitySchema.index({ date: 1 });
 activitySchema.index({ status: 1, date: 1 }); // Compound index for filtering open activities by date
 activitySchema.index({ category: 1 }); // For category-based filtering
+activitySchema.index({ coordinates: '2dsphere' }); // For geospatial queries
 
 // Virtual to check if activity is full
 activitySchema.virtual('isFull').get(function () {
